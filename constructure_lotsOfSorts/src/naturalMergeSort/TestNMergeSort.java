@@ -27,7 +27,7 @@ public class TestNMergeSort {
 		//extra: use to store sorted data
 		int[] extra = new int[n];
 		ArrayList<Integer> extraTags = new ArrayList<Integer>();
-		while (tags.size() > 2) {
+		while (tags.size() > 1) {
 			nMergepass(a, extra, tags, extraTags, n);
 			tags.clear();
 			nMergepass(extra, a, extraTags, tags, n);

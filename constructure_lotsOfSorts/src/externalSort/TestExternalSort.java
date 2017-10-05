@@ -10,6 +10,7 @@ public class TestExternalSort {
 		timer.start();
 		int fileNum = readAndSplit();
 		
+		
 		timer.stop();
 		System.out.println(timer.getTotalTime());
 		System.out.println("Finished!");
@@ -124,6 +125,29 @@ public class TestExternalSort {
 			}
 		}
 		data[(child - 1) / 2] = temp;
+	}
+	
+	public static void sortAndMerge(int fileNum) throws IOException {
+		//Read first 50 data from all split files.
+		int bufferLength = 50;
+		BufferedReader[] bufferedFiles = new BufferedReader[fileNum + 1];
+		String[][] strs = new String[fileNum + 1][bufferLength];
+		int[][] values = new int[fileNum + 1][bufferLength];
+		String str;
+		for (int i = 1; i <= fileNum; i++) {
+			bufferedFiles[i] = new BufferedReader(new FileReader("test" + i + ".csv"));
+			for (int j = 0; j < bufferLength; j++) {
+				if ((str = bufferedFiles[i].readLine()) != null) {
+					strs[i][j] = str;
+					values[i][j] = Integer.parseInt(str.split(",")[7]);
+				}
+			}
+		}
+		ExternalSort[] toHeapSort = new ExternalSort[fileNum];
+		for (int i = 0; i < fileNum; i++)
+			toHeapSort[i] = new ExternalSort(i + 1, values[i + 1][0], strs[i + 1][0]);
+		
+		
 	}
 }
 

@@ -8,7 +8,7 @@ public class TestExternalSort {
 	public static void main(String[] args) throws IOException {
 		Stopwatch timer = new Stopwatch();
 		timer.start();
-		readAndSplit();
+		int fileNum = readAndSplit();
 		
 		timer.stop();
 		System.out.println(timer.getTotalTime());
@@ -74,7 +74,7 @@ public class TestExternalSort {
 		}
 	}
 	
-	public static void readAndSplit() throws IOException {
+	public static int readAndSplit() throws IOException {
 		BufferedReader br = new BufferedReader(new FileReader("timetable.csv"));
 		String title = br.readLine();
 		String str;
@@ -106,6 +106,24 @@ public class TestExternalSort {
 			i++;
 		}
 		br.close();
+		return i;
+	}
+	
+	//Adjust as a min heap
+	public static void adjust(int[] data, int root, int number) {
+		int child = root * 2 + 1; //left child
+		int temp = data[root];
+		while (child < number) {
+			if ((child < number - 1) && data[child] > data[child + 1])
+				child++;
+			if (temp < data[child])
+				break;
+			else {
+				data[(child - 1)/2] = data[child]; //set current parent as this child;
+				child = child * 2 + 1;
+			}
+		}
+		data[(child - 1) / 2] = temp;
 	}
 }
 

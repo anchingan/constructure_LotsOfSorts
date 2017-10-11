@@ -4,12 +4,13 @@ import java.io.*;
 import java.util.ArrayList;
 
 public class TestExternalSort {
+	static String title;
 
 	public static void main(String[] args) throws IOException {
 		Stopwatch timer = new Stopwatch();
 		timer.start();
 		int fileNum = readAndSplit();
-		
+		sortAndMerge(fileNum);
 		
 		timer.stop();
 		System.out.println(timer.getTotalTime());
@@ -77,11 +78,11 @@ public class TestExternalSort {
 	
 	public static int readAndSplit() throws IOException {
 		BufferedReader br = new BufferedReader(new FileReader("timetable.csv"));
-		String title = br.readLine();
+		title = br.readLine();
 		String str;
 		String[] strs;
 		int[][] times; //[][0]:time, [][1]:index;
-		int i = 1;
+		int i = 0;
 		BufferedWriter wr;
 		int n, length = 2500;
 		while ((str = br.readLine()) != null) {
@@ -97,7 +98,7 @@ public class TestExternalSort {
 				times[n][1] = n++;
 			}
 			nMergeSort(times, n);
-			wr = new BufferedWriter(new OutputStreamWriter(new FileOutputStream("test" + i + ".csv")));
+			wr = new BufferedWriter(new OutputStreamWriter(new FileOutputStream("test" + (i + 1) + ".csv")));
 			for (int j = 0; j < n; j++) {
 				wr.write(strs[times[j][1]]);
 				wr.newLine();
@@ -111,13 +112,13 @@ public class TestExternalSort {
 	}
 	
 	//Adjust as a min heap
-	public static void adjust(int[] data, int root, int number) {
+	public static void adjust(ExternalSort[] data, int root, int number) {
 		int child = root * 2 + 1; //left child
-		int temp = data[root];
-		while (child < number) {
-			if ((child < number - 1) && data[child] > data[child + 1])
+		ExternalSort temp = data[root];
+		while (child <= number) {
+			if ((child <= number - 1) && data[child].time > data[child + 1].time)
 				child++;
-			if (temp < data[child])
+			if (temp.time < data[child].time)
 				break;
 			else {
 				data[(child - 1)/2] = data[child]; //set current parent as this child;
@@ -127,27 +128,94 @@ public class TestExternalSort {
 		data[(child - 1) / 2] = temp;
 	}
 	
-	public static void sortAndMerge(int fileNum) throws IOException {
-		//Read first 50 data from all split files.
-		int bufferLength = 50;
-		BufferedReader[] bufferedFiles = new BufferedReader[fileNum + 1];
-		String[][] strs = new String[fileNum + 1][bufferLength];
-		int[][] values = new int[fileNum + 1][bufferLength];
+	public static void buildMinHeapTree(ExternalSort[] data, int number) {
+		int i = number - 1;
+		for (i = (i - 1) / 2; i >= 0; i--)
+			adjust(data, i, number);
+	}
+	
+	public static void swap(ExternalSort[] data, int index1, int index2) {
+		ExternalSort temp = data[index1];
+		data[index1] = data[index2];
+		data[index2] = temp;
+	}
+	
+	//read data from split file.
+	public static void readFromSplit(BufferedReader[] bufferedFiles, String[][] strs, int[][] values, int bufferLength, int index) throws IOException {
 		String str;
-		for (int i = 1; i <= fileNum; i++) {
-			bufferedFiles[i] = new BufferedReader(new FileReader("test" + i + ".csv"));
+		if (bufferedFiles[index].ready()) {
 			for (int j = 0; j < bufferLength; j++) {
-				if ((str = bufferedFiles[i].readLine()) != null) {
-					strs[i][j] = str;
-					values[i][j] = Integer.parseInt(str.split(",")[7]);
+				if ((str = bufferedFiles[index].readLine()) != null) {
+					strs[index][j] = str;
+					values[index][j] = Integer.parseInt(str.split(",")[7]);
+				}
+				if (str == null) {
+					strs[index][j] = null;
+					values[index][j] = -1;
+					bufferedFiles[index].close();
+					break;
 				}
 			}
 		}
+	}
+	
+	public static void sortAndMerge(int fileNum) throws IOException {
+		//Read first 50 data from all split files.
+		int bufferLength = 50;
+		BufferedReader[] bufferedFiles = new BufferedReader[fileNum];
+		String[][] strs = new String[fileNum][bufferLength];
+		int[][] values = new int[fileNum][bufferLength];
+		String str;
+		
+		for (int i = 0; i < fileNum; i++) {
+			bufferedFiles[i] = new BufferedReader(new FileReader("test" + (i + 1) + ".csv"));
+			readFromSplit(bufferedFiles, strs, values, bufferLength, i);
+		}
+		
 		ExternalSort[] toHeapSort = new ExternalSort[fileNum];
+		//write first data from each buffer file to ExternalSort[] toHeapSort.
 		for (int i = 0; i < fileNum; i++)
-			toHeapSort[i] = new ExternalSort(i + 1, values[i + 1][0], strs[i + 1][0]);
-		
-		
+			toHeapSort[i] = new ExternalSort(i, values[i][0], strs[i][0], 0);
+		//adjust as a min heaptree
+		buildMinHeapTree(toHeapSort, fileNum);
+		BufferedWriter bw = new BufferedWriter(new FileWriter("sortresult.csv"));
+		//write title to file.
+		bw.write(title);
+		bw.newLine();
+		int num = fileNum - 1; //record last index in heaptree
+		int total = 0;
+		while (num > 0) {
+			bw.write(toHeapSort[0].data);
+			bw.newLine();
+			//replace toHeapSort[0]
+			if (toHeapSort[0].index >= bufferLength - 1) {
+				if (!bufferedFiles[toHeapSort[0].origin].ready()) 
+					swap(toHeapSort, 0, num--);
+				else {
+					readFromSplit(bufferedFiles, strs, values, bufferLength, toHeapSort[0].origin);
+					toHeapSort[0].index = 0;
+					toHeapSort[0].data = strs[toHeapSort[0].origin][0];
+					toHeapSort[0].time = values[toHeapSort[0].origin][0];
+				}
+			}
+			else {
+				toHeapSort[0].index++;
+				if (values[toHeapSort[0].origin][toHeapSort[0].index] == -1)
+					swap(toHeapSort, 0, num--);
+				else {
+					toHeapSort[0].data = strs[toHeapSort[0].origin][toHeapSort[0].index];
+					toHeapSort[0].time = values[toHeapSort[0].origin][toHeapSort[0].index];
+				}
+			}
+			adjust(toHeapSort, 0, num);
+		}
+		bw.write(toHeapSort[0].data);
+		total++;
+		bw.newLine();
+		bw.write(toHeapSort[1].data);
+		total++;
+		bw.flush();
+		bw.close();
 	}
 }
 
